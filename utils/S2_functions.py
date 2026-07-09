@@ -348,6 +348,32 @@ def gen_traj_S2(x_input, model, eta=1, time_step=110, dt=0.03, model_type=None):
     return xtraj, qtraj
 
 
+def gen_traj_S2_GVF(x_input, model, eta=1, time_step=110, dt=0.03, model_type=None, xtraj_origin=None, xdottraj_origin=None):
+    # input : [batch, 3 or 2]
+    if x_input.shape[-1] == 2:
+        x_input = q_to_x(x_input)
+
+    x_now = x_input
+    q_now = x_to_q(x_now)
+    xtraj_list = [x_now.unsqueeze(1)]
+    qtraj_list = [x_to_q(x_now).unsqueeze(1)]
+    for j in range(time_step):
+        xdot_gvf = BCSDM_S2(x_now, eta, xtraj_origin, xdottraj_origin)
+        q_dot = xdot_to_qdot(xdot_gvf, q_now)
+        max_speed = 1
+        q_dot = q_dot / torch.where(q_dot.norm(dim=1) > max_speed, q_dot.norm(dim=1) / max_speed, 1.).unsqueeze(
+            1).repeat(1, q_dot.shape[1])
+        q_now = x_to_q(x_now)
+        q_next = q_now + dt * q_dot  # [batch, 2]
+        x_now = q_to_x(q_next).to(torch.float)  # [batch, 3]
+        xtraj_list.append(x_now.unsqueeze(1).detach())
+        qtraj_list.append(q_next.unsqueeze(1).detach())
+    xtraj = torch.cat(xtraj_list, dim=1)
+    qtraj = torch.cat(qtraj_list, dim=1)
+
+    return xtraj, qtraj
+
+
 def vec_3dim_to_2dim(x, vec):
     Jac = get_jacobian(x)
     return torch.einsum('nij, ni -> nj', Jac, vec)

@@ -19,7 +19,7 @@ new_aut  = ListedColormap(aut(range(256)))
 
 
 def streamline_local(qtraj, VF, eta=None, rot_view=0, w=[0, 0, 1], nq=101, color_map='winter', a_max=3, clim=None, fig_size=(12, 6),
-                      for_sphere=True, for_wandb=False, for_metric=False, sample_trajs=None, ax=None, check_diffeo=False, vector=False, **file_kwargs):
+                      for_sphere=True, for_wandb=False, for_metric=False, sample_trajs=None, sample_trajs_gvf=None, ax=None, check_diffeo=False, vector=False, **file_kwargs):
     if ax is None:
         fig = plt.figure(figsize=fig_size)
         ax = fig.add_subplot()
@@ -334,62 +334,62 @@ def streamline_sphere(qtraj, *args, rot_view=0, w=[0, 0, 1],
         R_torch = torch.tensor(R).unsqueeze(0)
         R2_torch = torch.tensor(R2).unsqueeze(0)
         for i in range(len(sample_trajs)):
-            traj = (R_torch.repeat(len(sample_trajs[i]),1,1) @ sample_trajs[i].unsqueeze(2)).squeeze()
-            sample_xt = traj[:,0].detach().numpy()
-            sample_yt = traj[:,1].detach().numpy()
-            sample_zt = traj[:,2].detach().numpy()
-            xt_plot = sample_xt[sample_xt >= 0]
-            yt_plot = sample_yt[sample_xt >= 0]
-            zt_plot = sample_zt[sample_xt >= 0]
-            
-            # check discontinuity
-            dist = 0
-            last_point = None
-            last_index = 0
-            xplot_list, yplot_list, zplot_list = [], [], []
-            for i in range(len(xt_plot)):
-                point = np.array([xt_plot[i], yt_plot[i], zt_plot[i]])
-                if last_point is not None:
-                    dist = np.sqrt(((last_point-point)**2).sum())
-                last_point = point
-                if dist > 0.1 or i == (len(xt_plot)-1):
-                    xplot_list.append(xt_plot[last_index:i])
-                    yplot_list.append(yt_plot[last_index:i])
-                    zplot_list.append(zt_plot[last_index:i])
-                    last_index = i
-            for i in range(len(xplot_list)):
-                ax.plot(xplot_list[i], yplot_list[i], zplot_list[i], sample_c, linewidth=1.5, zorder=3)
-            
-            if len(sample_xt[sample_xt >= 0]) > 0:
-                ax.scatter(sample_xt[0], sample_yt[0], sample_zt[0], c=sample_start_c, marker='s', s=point_size*0.75, zorder=3)
-            
-            traj2 = (R2_torch.repeat(len(sample_trajs[i]),1,1) @ sample_trajs[i].unsqueeze(2)).squeeze()
-            sample_xt = traj2[:,0].detach().numpy()
-            sample_yt = traj2[:,1].detach().numpy()
-            sample_zt = traj2[:,2].detach().numpy()
-            xt_plot = sample_xt[sample_xt >= 0]
-            yt_plot = sample_yt[sample_xt >= 0]
-            zt_plot = sample_zt[sample_xt >= 0]
-            
-            # check discontinuity
-            dist = 0
-            last_point = None
-            last_index = 0
-            xplot_list, yplot_list, zplot_list = [], [], []
-            for i in range(len(xt_plot)):
-                point = np.array([xt_plot[i], yt_plot[i], zt_plot[i]])
-                if last_point is not None:
-                    dist = np.sqrt(((last_point-point)**2).sum())
-                last_point = point
-                if dist > 0.1 or i == (len(xt_plot)-1):
-                    xplot_list.append(xt_plot[last_index:i])
-                    yplot_list.append(yt_plot[last_index:i])
-                    zplot_list.append(zt_plot[last_index:i])
-                    last_index = i
-            for i in range(len(xplot_list)):
-                ax2.plot(xplot_list[i], yplot_list[i], zplot_list[i], sample_c, linewidth=1.5, zorder=3)
-            if len(sample_xt[sample_xt >= 0]) > 0:
-                ax2.scatter(sample_xt[0], sample_yt[0], sample_zt[0], c=sample_start_c, marker='s', s=point_size*0.75, zorder=3)
+                traj = (R_torch.repeat(len(sample_trajs[i]),1,1) @ sample_trajs[i].unsqueeze(2)).squeeze()
+                sample_xt = traj[:,0].detach().numpy()
+                sample_yt = traj[:,1].detach().numpy()
+                sample_zt = traj[:,2].detach().numpy()
+                xt_plot = sample_xt[sample_xt >= 0]
+                yt_plot = sample_yt[sample_xt >= 0]
+                zt_plot = sample_zt[sample_xt >= 0]
+
+                # check discontinuity
+                dist = 0
+                last_point = None
+                last_index = 0
+                xplot_list, yplot_list, zplot_list = [], [], []
+                for i in range(len(xt_plot)):
+                    point = np.array([xt_plot[i], yt_plot[i], zt_plot[i]])
+                    if last_point is not None:
+                        dist = np.sqrt(((last_point-point)**2).sum())
+                    last_point = point
+                    if dist > 0.1 or i == (len(xt_plot)-1):
+                        xplot_list.append(xt_plot[last_index:i])
+                        yplot_list.append(yt_plot[last_index:i])
+                        zplot_list.append(zt_plot[last_index:i])
+                        last_index = i
+                for i in range(len(xplot_list)):
+                    ax.plot(xplot_list[i], yplot_list[i], zplot_list[i], sample_c, linewidth=1.5, zorder=3)
+
+                if len(sample_xt[sample_xt >= 0]) > 0:
+                    ax.scatter(sample_xt[0], sample_yt[0], sample_zt[0], c=sample_start_c, marker='s', s=point_size*0.75, zorder=3)
+
+                traj2 = (R2_torch.repeat(len(sample_trajs[i]),1,1) @ sample_trajs[i].unsqueeze(2)).squeeze()
+                sample_xt = traj2[:,0].detach().numpy()
+                sample_yt = traj2[:,1].detach().numpy()
+                sample_zt = traj2[:,2].detach().numpy()
+                xt_plot = sample_xt[sample_xt >= 0]
+                yt_plot = sample_yt[sample_xt >= 0]
+                zt_plot = sample_zt[sample_xt >= 0]
+
+                # check discontinuity
+                dist = 0
+                last_point = None
+                last_index = 0
+                xplot_list, yplot_list, zplot_list = [], [], []
+                for i in range(len(xt_plot)):
+                    point = np.array([xt_plot[i], yt_plot[i], zt_plot[i]])
+                    if last_point is not None:
+                        dist = np.sqrt(((last_point-point)**2).sum())
+                    last_point = point
+                    if dist > 0.1 or i == (len(xt_plot)-1):
+                        xplot_list.append(xt_plot[last_index:i])
+                        yplot_list.append(yt_plot[last_index:i])
+                        zplot_list.append(zt_plot[last_index:i])
+                        last_index = i
+                for i in range(len(xplot_list)):
+                    ax2.plot(xplot_list[i], yplot_list[i], zplot_list[i], sample_c, linewidth=1.5, zorder=3)
+                if len(sample_xt[sample_xt >= 0]) > 0:
+                    ax2.scatter(sample_xt[0], sample_yt[0], sample_zt[0], c=sample_start_c, marker='s', s=point_size*0.75, zorder=3)
             
     if 'file_name' in kwargs.keys():
         if kwargs['file_name'] is not None:

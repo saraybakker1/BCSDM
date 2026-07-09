@@ -83,7 +83,8 @@ def exp_so3(Input):
     else:
         w = Input
         W = skew(w)
-    wnorm_sq = torch.tensordot(w, w, dims=([1], [1]))[[range(n), range(n)]]  # dim = (n)\
+    # wnorm_sq = torch.tensordot(w, w, dims=([1], [1]))[[range(n), range(n)]]  # dim = (n)\ #replaced by saray to avoid warning
+    wnorm_sq = torch.tensordot(w, w, dims=([1], [1])).diag()
     wnorm_sq_unsqueezed = wnorm_sq.unsqueeze(-1).unsqueeze(-1)  # dim = (n,1)
     
     wnorm = torch.sqrt(wnorm_sq)  # (dim = n)

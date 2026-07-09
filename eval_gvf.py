@@ -53,7 +53,11 @@ def S2_eval(cfg):
     
     ### generate sample trajectory ###
     if cfg.contraction:
+        # GVF version:
+        Model.generate_sample_trajectory(cfg.data_num, cfg.eta, cfg.traj_length, model_type="GVF")
+
         Model.generate_sample_trajectory(cfg.data_num, cfg.eta, cfg.traj_length)
+
     
     ### paralllel ###
     if cfg.mimic:
@@ -170,13 +174,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default='./configs/eval/S2_bc-deepovec.yml', type=str)
     parser.add_argument("--device", default='cpu')
-    parser.add_argument("--fit_traj", action="store_true")
-    parser.add_argument("--fit_all", action="store_true")
+    parser.add_argument("--fit_traj", action="store_true", default=True)
+    parser.add_argument("--fit_all", action="store_true", default=True)
     parser.add_argument("--mimic", action="store_true")
-    parser.add_argument("--contraction", action="store_true")
+    parser.add_argument("--contraction", action="store_true", default=True)
     parser.add_argument("--cvf_mvf", action="store_true")
-    parser.add_argument("--vis_local", action="store_true")
-    parser.add_argument("--vis_sphere", action="store_true")
+    parser.add_argument("--vis_local", action="store_true", default=True)
+    parser.add_argument("--vis_sphere", action="store_true", default=True)
     parser.add_argument("--run", default=None)
     args, unknown = parser.parse_known_args()
     cfg = OmegaConf.load(args.config)

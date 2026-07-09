@@ -24,6 +24,7 @@ class S2_metric():
         # set demo
         self.demo_length = demo_length
         S2_demos = torch.load(data_path)
+        S2_demos = S2_demos[0:2]
         self.xtraj_origin = []
         self.xdottraj_origin = []
         self.qtraj_origin = []
@@ -68,6 +69,8 @@ class S2_metric():
         self.qsamples = None
         self.xsample_trajs = [[]]*len(self.xtraj)
         self.qsample_trajs = [[]]*len(self.xtraj)
+        self.xsample_trajs_GVF = [[]]*len(self.xtraj) #added saray
+        self.qsample_trajs_GVF = [[]]*len(self.xtraj) #added saray
         
         self.q_trans = torch.tensor([0., 0.5]).to(self.device)
     
@@ -79,6 +82,18 @@ class S2_metric():
         if output.shape[-1] == 3:
             output = s2.xdot_to_qdot(output, q=s2.x_to_q(x_input))
         
+        return output
+
+    def gvf_forward(self, x_input, data_num, eta=1, device=None, vis=False):  # n-dimensional input
+        if device is None:
+            device = self.device
+        xtraj_input = self.xtraj_origin[data_num].to(device)
+        xdottraj_input = self.xdottraj_origin[data_num].to(device)
+        # output = self.model.to(device)(x=x_input.to(device), xtraj=xtraj_input, eta=eta)
+        output = s2.BCSDM_S2(x_input, eta, xtraj_input, xdottraj_input)
+        if output.shape[-1] == 3:
+            output = s2.xdot_to_qdot(output, q=s2.x_to_q(x_input))
+
         return output
     
     def sampling_traj(self, batch_size=100, std=0.1, type='gaussian'):
@@ -109,7 +124,7 @@ class S2_metric():
         self.xsamples = torch.tensor(samples['xsamples']).to(self.device)
         self.qsamples = torch.tensor(samples['qsamples']).to(self.device)
     
-    def generate_sample_trajectory(self, data_num=None, eta=1, time_step=110, dt=0.03):  
+    def generate_sample_trajectory(self, data_num=None, eta=1, time_step=110, dt=0.03, model_type=None):
         if data_num is None:
             data_range = range(len(self.xtraj))
         elif type(data_num) is list:
@@ -118,12 +133,20 @@ class S2_metric():
             data_range = [data_num]
         else:
             raise Exception("Invalid data_num type!")
+
+        if model_type is None: #saray added
+            model_type = self.model_type
         
         for data_num in tqdm.tqdm(data_range, desc='Generating sample trajs'):
             vf = partial(self.model_forward, data_num=data_num, device=self.device)
-            xtraj, qtraj = s2.gen_traj_S2(self.xsamples[data_num], vf, eta, time_step, dt, self.model_type)
-            self.xsample_trajs[data_num] = xtraj
-            self.qsample_trajs[data_num] = qtraj
+            if model_type == "GVF":
+                xtraj, qtraj = s2.gen_traj_S2_GVF(self.xsamples[data_num], vf, eta, time_step, dt, model_type, xtraj_origin=self.xtraj_origin[data_num], xdottraj_origin =self.xdottraj_origin[data_num])
+                self.xsample_trajs_GVF[data_num] = xtraj
+                self.qsample_trajs_GVF[data_num] = qtraj
+            else:
+                xtraj, qtraj = s2.gen_traj_S2(self.xsamples[data_num], vf, eta, time_step, dt, model_type)
+                self.xsample_trajs[data_num] = xtraj
+                self.qsample_trajs[data_num] = qtraj
     
     def fit_traj_error(self, data_num=None, eta=1):
         if data_num is None:
@@ -161,7 +184,6 @@ class S2_metric():
             error_list.append(error)
         total_error_std, total_error_mean = torch.std_mean(torch.tensor(error_list))
         return total_error_std.detach().numpy().tolist(), total_error_mean.detach().numpy().tolist()
-    
     
     def mimic_error(self, data_num, eta, mimicking):
         if data_num is None:
@@ -226,6 +248,8 @@ class S2_metric():
         for data_num in tqdm.tqdm(data_range, desc='Plotting'):
             file_name_vis = file_name + str(data_num)
             vf = partial(self.model_forward, data_num=data_num, device='cpu', vis=True)
+            vf_GVF = partial(self.gvf_forward, data_num=data_num, device='cpu', vis=True)
+            file_name_vis_GVF = file_name_vis + "_GVF"
             qtraj_vis = self.qtraj[data_num]
             
             if plane or sphere:
@@ -236,12 +260,17 @@ class S2_metric():
                     nq = 101
                 
                 res_local = vis_s2.streamline_local(qtraj_vis.detach().cpu(), vf, eta = eta, rot_view=-1.5, w=[0,0,1], nq=nq,
-                                                    for_sphere=True, for_wandb=False, for_metric=True, sample_trajs=None,
+                                                    for_sphere=True, for_wandb=False, for_metric=True, sample_trajs=self.qsample_trajs[data_num],
                                                     vector=True, file_name=file_name_vis)
+                res_local_GVF = vis_s2.streamline_local(qtraj_vis.detach().cpu(), vf_GVF, eta = eta, rot_view=-1.5, w=[0,0,1], nq=nq,
+                                                    for_sphere=True, for_wandb=False, for_metric=True, sample_trajs=self.qsample_trajs_GVF[data_num],
+                                                    vector=True, file_name=file_name_vis_GVF)
             
             if sphere:
                 vis_s2.streamline_sphere(qtraj_vis.detach().cpu(), rot_view=-1.5, res=res_local,
-                                         for_wandb=True, sample_trajs=None, vector=True, file_name=file_name_vis)
+                                         for_wandb=True, sample_trajs=self.xsample_trajs[data_num], vector=True, file_name=file_name_vis)
+                vis_s2.streamline_sphere(qtraj_vis.detach().cpu(), rot_view=-1.5, res=res_local_GVF,
+                                         for_wandb=True, sample_trajs=self.xsample_trajs_GVF[data_num], vector=True, file_name=file_name_vis_GVF)
     
     
     def cvf_mvf_error(self, data_num):
