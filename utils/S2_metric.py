@@ -138,15 +138,18 @@ class S2_metric():
             model_type = self.model_type
         
         for data_num in tqdm.tqdm(data_range, desc='Generating sample trajs'):
-            vf = partial(self.model_forward, data_num=data_num, device=self.device)
             if model_type == "GVF":
-                xtraj, qtraj = s2.gen_traj_S2_GVF(self.xsamples[data_num], vf, eta, time_step, dt, model_type, xtraj_origin=self.xtraj_origin[data_num], xdottraj_origin =self.xdottraj_origin[data_num])
+                vf = partial(self.gvf_forward, data_num=data_num, device=self.device, vis=True)
+            else:
+                vf = partial(self.model_forward, data_num=data_num, device=self.device, vis=True)
+            xtraj, qtraj = s2.gen_traj_S2(self.xsamples[data_num], vf, eta, time_step, dt, model_type)
+            if model_type == "GVF":
                 self.xsample_trajs_GVF[data_num] = xtraj
                 self.qsample_trajs_GVF[data_num] = qtraj
             else:
-                xtraj, qtraj = s2.gen_traj_S2(self.xsamples[data_num], vf, eta, time_step, dt, model_type)
                 self.xsample_trajs[data_num] = xtraj
                 self.qsample_trajs[data_num] = qtraj
+
     
     def fit_traj_error(self, data_num=None, eta=1):
         if data_num is None:

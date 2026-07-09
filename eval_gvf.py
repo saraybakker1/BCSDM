@@ -1,5 +1,6 @@
 import os
 import torch
+import time
 import argparse
 from pathlib import Path
 from datetime import datetime
@@ -96,8 +97,10 @@ def S2_eval(cfg):
     
     ### visualization ###
     if cfg.vis_local or cfg.vis_sphere:
+        time0 = time.perf_counter()
         file_name = os.path.join(cfg.logdir, cfg.model.type)
         Model.vis(cfg.vis.vis_data_num, cfg.eta, cfg.vis_local, cfg.vis_sphere, file_name)
+        print("time for visualize: ", time.perf_counter() - time0)
 
 def SE3_eval(cfg):
     results = {}
